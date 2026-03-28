@@ -1,161 +1,137 @@
 ---
 name: AI-Assisted Coding
-description: Specification-driven development, systematic code generation, refactoring strategies, and modern development patterns
+description: Specification-driven development, systematic code generation, refactoring strategies, and implementation workflow for this PHP 5.6 legacy project. Use when implementing from task specs, adding services/controllers/DAO code, refactoring within existing conventions, or preparing project-aligned test plans.
 ---
 
 # AI-Assisted Coding Skill
 
-Use this skill for writing production code efficiently using specification-driven approaches, systematic refactoring, and modern patterns.
+Use this skill for writing production code efficiently using specification-driven approaches and repository-native patterns.
 
-## When to Activate
+## Project-Specific Constraints
 
-- Implementing from a T-spec or requirements document
-- Writing new services, controllers, views, or JS modules
-- Refactoring existing code to new patterns
-- Generating tests from implementation
+- This repository targets PHP 5.6. Do not introduce PHP 7+ syntax.
+- Do not add `\Throwable`, scalar type hints, return types, typed properties, `??`, or other newer shorthand.
+- Prefer explicit `isset()`, ternaries, and `catch (\Exception $e)`.
+- Stay inside the active task scope. If the task is backend-only, do not add UI, assets, or permission layers unless the spec requires them.
 
-## Core Method: Spec → Plan → Code → Test
+## Core Method: Spec -> Plan -> Code -> Test
 
 ### Step 1: Parse the Specification
 
-Extract these from any spec:
+Extract:
 
+```text
+input contract
+output contract
+state transitions
+dependencies
+acceptance criteria
 ```
-□ Input contract (what data comes in, from where)
-□ Output contract (response shape, error codes)
-□ State transitions (before → after)
-□ Dependencies (upstream services, data sources)
-□ Acceptance criteria (what makes this "done")
-```
 
-### Step 2: Create Implementation Plan
+### Step 2: Create an Implementation Plan
 
-Before writing any code, produce:
+Before writing code, identify:
 
-1. **File list** — every file that will be created or modified
-2. **Dependency order** — which files must exist before others
-3. **Change size** — estimate lines per file (keep files focused)
-4. **Test plan** — what scenarios to cover
+1. File list
+2. Dependency order
+3. Change size
+4. Test plan
 
-### Step 3: Code Generation Patterns
+### Step 3: Use Project-Aligned Code Patterns
 
 #### Service Methods
 
 ```php
 /**
- * Brief description of what this does.
- * @param string $input Description
- * @return array ['success' => 1, 'field' => value] | ['success' => 0, 'error_code' => 'CODE']
+ * Brief description.
+ * @param mixed $input Description
+ * @return array
  */
 public static function doSomething($input) {
-    // 1. Validate / normalize input
-    // 2. Load required data
-    // 3. Apply business logic
+    // 1. Normalize input
+    // 2. Load dependencies/data
+    // 3. Apply business rules
     // 4. Return deterministic result
 }
 ```
 
-**Rules:**
-- Static methods for stateless operations
-- Return arrays with `success` flag, never throw for business errors
-- Normalize all inputs early (trim, strtoupper, type cast)
-- Every branch returns a response, never falls through
+Rules:
+
+- Prefer static methods for stateless operations.
+- Normalize inputs early.
+- Return deterministic arrays for business outcomes.
+- Keep orchestration readable and extract helpers when blocks become independent.
+- Add concise PHPDoc for public methods you introduce or materially change, including `@param` and `@return`.
 
 #### Controller Actions
 
 ```php
 public function actionDoSomething() {
-    $this->ensureAccess();                    // 1. Auth
-    Yii::$app->response->format = 'json';     // 2. Format
-    $form = new FormModel();                  // 3. Load + validate
-    $form->load(Yii::$app->request->post(), '');
-    if (!$form->validate()) {
-        return ['success' => 0, 'error_code' => 'VALIDATION_FAILED'];
-    }
-    $result = Service::doSomething($form);    // 4. Delegate
-    return $result;                           // 5. Return
+    Yii::$app->response->format = Response::FORMAT_JSON;
+    $payload = Yii::$app->request->post();
+    return ServiceExample::doSomething($payload);
 }
 ```
 
-#### JavaScript Modules
+Rules:
 
-```javascript
-(function ($) {
-    'use strict';
-    var $root = $('#module-root');
-    if (!$root.length) return;
+- Keep controllers thin.
+- Validate/normalize request data before delegating when the endpoint contract needs it.
+- Do not move business logic into controllers.
 
-    // Parse config from DOM
-    var config = JSON.parse($root.attr('data-config') || '{}');
+#### Refactoring Strategy
 
-    // State
-    var state = { mode: 'idle' };
+- Extract and delegate instead of rewriting large files.
+- Keep existing callers working.
+- Add bridge methods only when compatibility requires them.
 
-    // Private functions
-    function render() { /* ... */ }
-    function handleScan() { /* ... */ }
+Example:
 
-    // Event bindings
-    $root.on('click', '#action-btn', handleScan);
-
-    // Init
-    render();
-})(jQuery);
-```
-
-### Step 4: Refactoring Strategies
-
-#### Extract and Delegate
-When a method grows too large:
-1. Identify self-contained blocks
-2. Extract to private methods with clear names
-3. Keep the orchestration method readable
-
-#### Bridge Pattern for Breaking Changes
-When changing a method signature:
 ```php
-// Old method — add @deprecated, delegate to new
-/** @deprecated Use newMethod() instead */
+/** @deprecated Use newMethod() instead. */
 public function oldMethod($a, $b) {
-    return $this->newMethod(['param_a' => $a, 'param_b' => $b]);
+    return $this->newMethod([
+        'param_a' => $a,
+        'param_b' => $b,
+    ]);
 }
 
-// New method — clean interface
-public function newMethod(array $context) { /* ... */ }
+public function newMethod($context) {
+    // ...
+}
 ```
-
-#### CSS Migration
-When moving from inline to shared:
-1. Create shared file with new class names
-2. Add backward-compatible aliases for old names
-3. Update views to register shared file
-4. Remove inline styles
 
 ## Code Quality Checklist
 
-Before marking any implementation complete:
+Before marking work complete:
 
-```
-□ All inputs validated and normalized
-□ All error paths return deterministic error codes
-□ No business logic in controllers
-□ No hardcoded values without config fallback
-□ PHPDoc on all public methods
-□ Consistent naming with project conventions
-□ Tests written for happy path + error paths
-□ No console.log or var_dump left in code
-□ All DOM IDs unique and follow naming convention
-□ All event handlers properly namespaced
+```text
+all inputs validated and normalized
+all error paths deterministic
+no business logic in controllers
+no hardcoded values without fallback strategy
+no PHP 7+ syntax introduced
+consistent naming with project conventions
+tests or a concrete test plan provided
+no debug leftovers
 ```
 
-## Yii2-Specific Patterns
+## Yii / Project Patterns
 
-| Pattern | Example |
-|---------|---------|
-| Config access | `Yii::$app->params['key']` with `isset()` guard |
-| Session storage | `Yii::$app->session->get('key', default)` |
-| URL generation | `Url::to(['controller/action', 'param' => 'value'])` |
-| JSON response | `Yii::$app->response->format = Response::FORMAT_JSON` |
-| RBAC check | `$user->hasPermission('permission_code')` |
-| Flash messages | `Yii::$app->session->setFlash('type', 'message')` |
-| Asset registration | `$this->registerJsFile('@web/js/file.js', ['depends' => [JqueryAsset::class]])` |
+- Config access: `isset(Yii::$app->params['key']) ? Yii::$app->params['key'] : $default`
+- JSON response: `Yii::$app->response->format = Response::FORMAT_JSON`
+- Session access: `Yii::$app->session->get('key', $default)`
+- RBAC check: `$user->hasPermission('permission_code')`
+- Service layer: `models/service/`
+- DAO layer: `models/dao/`
+- In Services, load DAO operations via `DbWorker::Instance(DaoClass::class)` instead of calling DAO ActiveRecord/query methods directly.
+
+## PHP 5.6 Review Pass
+
+Before finishing any PHP change, scan for:
+
+```bash
+rg -n "Throwable|\\?\\?|function .*:\\s|public .*\\$.*:|private .*\\$.*:" path/to/files
+```
+
+Then manually review any new method signatures for legacy-incompatible syntax.

@@ -1,124 +1,78 @@
 ---
 name: Software Architecture
-description: System design, component decomposition, dependency analysis, and architectural decision-making for scalable applications
+description: System design, component decomposition, dependency analysis, and architectural decision-making for this legacy PHP 5.6 Yii application. Use when planning new modules, integrating features with existing layers, or deciding service/DAO/controller boundaries.
 ---
 
 # Software Architecture Skill
 
-Use this skill when designing new systems, decomposing features into components, analyzing dependencies, or making architectural decisions.
+Use this skill when designing new systems, decomposing features into components, or making architectural decisions.
 
-## When to Activate
+## Project Constraints
 
-- User asks to "design", "architect", or "plan" a feature or system
-- New module/service needs to integrate with existing codebase
-- Refactoring requires understanding component boundaries
-- Performance or scalability concerns arise
+- This codebase is a legacy PHP 5.6 environment. Architecture decisions must preserve PHP 5.6-compatible implementation patterns.
+- Prefer additive service-layer changes over broad rewrites.
+- Keep scope aligned with the requested task. Do not expand backend tasks into UI or permission systems unless the specification requires that integration.
 
 ## Workflow
 
-### 1. Context Gathering
+### 1. Gather Context
 
-Before designing anything, gather:
+Identify:
 
-```
-□ What problem does this solve?
-□ Who are the consumers (API callers, UI, other services)?
-□ What data flows in and out?
-□ What existing patterns does the project use?
-□ What are the constraints (framework, DB, performance)?
-```
+- what problem the feature solves
+- who consumes it
+- what data flows in and out
+- what existing patterns already solve similar work
+- what constraints exist: framework, database, performance, compatibility
 
-**Always read existing code first.** Search for:
-- Similar features already implemented
-- Service layer patterns in `models/service/`
-- Controller patterns in `controllers/`
-- View/JS patterns in `views/` and `web/js/`
+Always read existing code first.
 
-### 2. Component Decomposition
+### 2. Decompose by Layer
 
-Break the feature into layers following project convention:
+Follow repository conventions:
 
-```
-┌─────────────────────────────────────────────┐
-│  Controller (thin)                          │
-│  → Validate input                           │
-│  → Delegate to service                      │
-│  → Format response                          │
-├─────────────────────────────────────────────┤
-│  Service (business logic)                   │
-│  → Orchestrate operations                   │
-│  → Apply business rules                     │
-│  → Return deterministic results             │
-├─────────────────────────────────────────────┤
-│  DAO (data access)                          │
-│  → ActiveRecord models                      │
-│  → Query builders                           │
-│  → No business logic                        │
-├─────────────────────────────────────────────┤
-│  Form Model (input validation)              │
-│  → Scenarios and rules                      │
-│  → Input sanitization                       │
-│  → Not business logic                       │
-└─────────────────────────────────────────────┘
-```
+- controller: thin input/output layer
+- service: business orchestration and rules
+- DAO: data access only
+- DTO/form model: validation and transport where needed
+- service-to-DAO access: use `DbWorker::Instance(DaoClass::class)` from Services instead of direct DAO AR/query calls
 
-### 3. Dependency Analysis
+### 3. Map Dependencies
 
-Map dependencies before writing code:
+List:
 
-```
-Feature X
-├── depends on: [list upstream services/data]
-├── consumed by: [list downstream callers]
-├── side effects: [status changes, notifications, logs]
-└── failure modes: [what happens when each dependency fails]
+- upstream dependencies
+- downstream consumers
+- side effects such as status changes or logs
+- failure modes for each dependency
+
+### 4. Define Contracts First
+
+Specify:
+
+- inputs
+- outputs
+- deterministic errors
+- state transitions
+- backward compatibility expectations
+- PHP 5.6 implementation limits
+
+### 5. Use the Project Resolution Pattern
+
+Apply:
+
+```text
+runtime settings -> code constants/maps -> sensible defaults
 ```
 
-### 4. Interface Contract Design
-
-Define the contract before implementation:
-
-- **Input**: exact fields, types, validation rules
-- **Output**: success response shape, error response shape
-- **Error codes**: deterministic, mappable to user-facing messages
-- **State transitions**: from_status → to_status with preconditions
-
-### 5. Resolution Pattern
-
-Apply the project's 3-tier resolution for configurable values:
-
-```
-1. Runtime config (Yii::$app->params)     — operator can change
-2. Code constants / hardcoded maps         — developer controls
-3. Sensible defaults                       — always works
-```
-
-Never let missing configuration crash the system.
-
-### 6. Backward Compatibility Strategy
-
-When modifying existing code:
-
-- **Bridge methods**: New method with new signature + old method delegates to new
-- **CSS aliases**: New class names + old class names point to same styles
-- **API versioning**: New fields added, old fields never removed
-- **Deprecation markers**: PHPDoc `@deprecated` with migration instructions
-
-### 7. Documentation
-
-Every architectural decision produces:
-- Implementation plan (artifact) with file-level change descriptions
-- Dependency diagram if >3 components involved
-- Error taxonomy for all new error codes
-- Test coverage plan
+Do not let missing configuration crash normal business flow unless the task explicitly requires a hard failure.
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern | Instead Do |
-|---|---|
-| Business logic in controllers | Move to service layer |
-| Generic error messages | Use deterministic error codes |
-| Hardcoded values without fallback config | Use 3-tier resolution |
-| New patterns when existing ones work | Match project conventions |
-| Full file rewrites for small changes | Targeted edits only |
-| Untested code | Every feature gets tests |
+- business logic in controllers
+- generic error messages where deterministic codes are required
+- broad rewrites for small task-scoped changes
+- importing adjacent tasks into the same change
+- introducing PHP 7+ syntax into legacy files
+- creating new patterns where existing service/DAO/controller patterns already fit
+- direct ActiveRecord access from Services when a DAO + `DbWorker` path should own the query
